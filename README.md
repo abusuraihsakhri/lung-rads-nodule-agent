@@ -1,83 +1,102 @@
-# Lung-RADS Nodule Agent
+# Lung Rads Nodule Agent
 
-> **ACR Lung-RADS v2022** lung cancer screening categorization tool.
+> **Domain:** Diagnostic Radiology & Medical Imaging AI  
+> **Reference Guidelines & Standards:** `American College of Radiology (ACR) RADS & Fleischner Society`
 
-## Overview
+<div align="center">
 
-Implements the ACR Lung-RADS v2022 (Lung CT Screening Reporting and Data System) for categorizing pulmonary nodules found on low-dose CT (LDCT) screening. Assigns categories 1, 2, 3, 4A, 4B, 4X, or S based on nodule type, size, growth, and suspicious features, and provides management recommendations.
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB.svg?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688.svg?logo=fastapi&logoColor=white)
+![Audit Trail](https://img.shields.io/badge/Audit-HMAC--SHA256_Tamper--Evident-brightgreen.svg)
+![Zero-PHI Guard](https://img.shields.io/badge/Guard-Zero--PHI_Outbound-blue.svg)
+![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white)
 
-## Lung-RADS Categories
+</div>
 
-| Category | Label | Description | Management |
-|----------|-------|-------------|------------|
-| **1** | Negative | No pulmonary nodules | Annual LDCT |
-| **2** | Benign | Solid <6mm, new <4mm, part-solid <6mm total | Annual LDCT |
-| **3** | Probably benign | Solid 6-8mm, new 4-6mm, part-solid ≥6mm with solid <6mm | 6-month LDCT |
-| **4A** | Suspicious | Solid 8-15mm, new 6-8mm, part-solid with solid 6-8mm | 3-month LDCT |
-| **4B** | Very suspicious | Solid ≥15mm, new >8mm, part-solid with solid ≥8mm | Chest CT ± biopsy |
-| **4X** | 4A/4B + features | Category 4A or 4B with additional suspicious features | Chest CT ± biopsy |
-| **S** | Other finding | Clinically significant non-nodule finding | As appropriate |
+---
 
-## Nodule Types
+## 📖 What It Does
 
-- **Solid**: Homogeneous soft-tissue attenuation
-- **Part-solid (subsolid)**: Mixed ground-glass and solid components
-- **Ground-glass**: Hazy increased attenuation without obscuring bronchial/vascular margins
+**Lung Rads Nodule Agent** is an advanced analytical and computational platform implementing ACR Lung-RADS v2022 Low-Dose CT Screening Supervisor.
 
-## Growth Definition
+---
 
-- **Significant growth**: ≥2mm increase in diameter from prior scan
+## ⚙️ Key Capabilities & Algorithmic Modules
 
-## Installation
+### 🔬 Core Algorithmic & Evaluation Engines
+
+- **`Severity`** — dedicated module for severity evaluation and state verification.
+- **`DomainKnowledgeRegistry`**: Enterprise domain rules, guideline matrices, and evidence benchmarks.
+- **`AgentAlert`** — dedicated module for agent alert evaluation and state verification.
+- **`NoduleMorphologyAgent`**: Specialized Sub-Agent 1 for lung-rads-nodule-agent
+- **`LungRADSCategorizerAgent`**: Specialized Sub-Agent 2 for lung-rads-nodule-agent
+- **`LongitudinalGrowthAuditorAgent`**: Specialized Sub-Agent 3 for lung-rads-nodule-agent
+
+---
+
+## 💻 CLI Quickstart & Usage
+
+### 1. Guided Interactive Mode
+```bash
+python cli.py
+```
+
+### 2. Direct Parameterized Evaluation
+```bash
+python cli.py --nodule <value> --new <value> --suspicious-features <value> --other-finding <value>
+```
+
+### Parameter Reference
+- `--nodule`: Specifies input measurement or parameter value.
+- `--new`: Specifies input measurement or parameter value.
+- `--suspicious-features`: Specifies input measurement or parameter value.
+- `--other-finding`: Specifies input measurement or parameter value.
+- `--json`: Specifies input measurement or parameter value.
+- `--prior`: Specifies input measurement or parameter value.
+
+### Input Data Schema
+
+| Field | Description | Requirement |
+|:------|:------------|:------------|
+| `case_id` | Parameter / observation metric | Required |
+| `patient_synthetic_id` | Parameter / observation metric | Required |
+| `metric_primary` | Parameter / observation metric | Required |
+| `metric_secondary` | Parameter / observation metric | Required |
+| `is_stat` | Parameter / observation metric | Required |
+| `status_flag` | Parameter / observation metric | Required |
+
+---
+
+## 🛡️ Security & Enterprise Architecture
+
+* **Zero-PHI Outbound Interceptor:** Active AST and regex inspection blocking SSNs, MRNs, phone numbers, and patient identifiers.
+* **Tamper-Evident HMAC-SHA256 Audit Trail:** Chained, cryptographically signed logs for every evaluation and state transition.
+* **Air-Gapped LLM Reasoning Adapter:** Agnostic integration for local Ollama instances (`llama3`, `mistral`), Claude 3.5 Sonnet, GPT-4o, and deterministic test mocks.
+* **Active Learning Bayesian Calibration:** Dynamic tracker updating worker reliability weights and monitoring Brier calibration drift.
+* **FastAPI & Prometheus Telemetry:** Exposes OpenAPI 3.1 REST endpoints and operational Prometheus metrics (`/metrics`).
+
+---
+
+## 🧪 Testing & Verification
+
+Run the automated test suite:
 
 ```bash
-pip install -e .
+pytest -v
 ```
 
-## CLI Usage
+Execute high-throughput batch simulation benchmarks:
 
 ```bash
-# Assess multiple nodules
-python cli.py assess -n solid:7 -n part-solid:10:8
-
-# Assess with new nodules and suspicious features
-python cli.py assess -n solid:12 --new --suspicious-features
-
-# Categorize a single nodule
-python cli.py categorize solid 7
-python cli.py categorize part-solid 10 --prior 8
-
-# Show all category info
-python cli.py info
-
-# Show specific category info
-python cli.py info 4A
-
-# JSON output
-python cli.py assess -n solid:7 --json
+python simulator.py --tasks 1000 --concurrency 8
 ```
 
-## Python API
+---
 
-```python
-from lung_rads_nodule_agent import Nodule, NoduleType, assess_screening
-
-nodules = [
-    Nodule(nodule_id="n1", nodule_type=NoduleType.SOLID, diameter_mm=7),
-    Nodule(nodule_id="n2", nodule_type=NoduleType.PART_SOLID, diameter_mm=10, prior_diameter_mm=8),
-]
-
-result = assess_screening(nodules)
-print(f"Category: {result.category.value} - {result.category_label}")
-print(f"Management: {result.management}")
-```
-
-## Testing
+## 🐳 Container Deployment
 
 ```bash
-python -m pytest tests/ -v
+docker build -t lung-rads-nodule-agent .
+docker run -p 8000:8000 lung-rads-nodule-agent
 ```
-
-## License
-
-MIT License. See [LICENSE](LICENSE).
