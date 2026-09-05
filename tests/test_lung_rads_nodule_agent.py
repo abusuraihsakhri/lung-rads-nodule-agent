@@ -12,10 +12,11 @@ from agents.base import PHIGuard, AuditLogger, SecurityException
 from agents.models import SystemTaskPayload, UrgencyLevel, SystemIntegrityStatus
 from agents.workers import InvariantQCWorker, SafetyEscalationWorker, ProtocolConformanceWorker
 from agents.supervisor import SystemSupervisor
-from cli import main
+from lung_rads_nodule_agent.cli import main as cli_main
 
 
 def test_phi_guard_enforcement():
+    """Verify PHI guard blocks sensitive identifiers and allows clean text."""
     with pytest.raises(SecurityException):
         PHIGuard.assert_no_phi("Patient MRN-994827 blood culture positive for Staphylococcus")
 
@@ -24,6 +25,7 @@ def test_phi_guard_enforcement():
 
 
 def test_specialized_workers():
+    """Verify all three specialized workers produce correct alerts."""
     # Worker 1: QC Invariant
     p1 = SystemTaskPayload(task_id="T1", target_identifier="KEY-01", primary_metric=35.0)
     alerts1 = InvariantQCWorker.evaluate(p1)
@@ -43,6 +45,7 @@ def test_specialized_workers():
 
 
 def test_supervisor_consensus_and_audit():
+    """Verify supervisor produces valid dossier with audit trail."""
     supervisor = SystemSupervisor(model_provider="mock")
     payload = SystemTaskPayload(
         task_id="TASK-PROD-01",
@@ -59,7 +62,7 @@ def test_supervisor_consensus_and_audit():
     # Verify cryptographic audit trail
     assert AuditLogger.verify_integrity() is True
 
-    # CLI tests
-    assert main(["audit", "--task-id", "CLI-TEST-01"]) == 0
-    assert main(["chat", "Explain", "specifications"]) == 0
-    assert main(["verify-audit"]) == 0
+    # CLI tests - using lung_rads_nodule_agent CLI (audit, chat, batch, serve)
+    assert cli_main(["audit", "--case-id", "CLI-TEST-01"]) == 0
+    assert cli_main(["chat", "Explain", "specifications"]) == 0
+    assert cli_main(["batch", "-i", "sample.csv"]) == 0

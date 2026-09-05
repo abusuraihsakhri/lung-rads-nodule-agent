@@ -10,6 +10,8 @@ from lung_rads_nodule_agent.engine import assess_screening, categorize_nodule, C
 
 def _parse_nodule(s: str) -> Nodule:
     """Parse a nodule from 'type:diameter_mm' or 'type:diameter_mm:prior_mm' format."""
+    if not s or not isinstance(s, str):
+        raise ValueError("Nodule spec must be a non-empty string")
     parts = s.split(":")
     if len(parts) < 2:
         raise ValueError(f"Invalid nodule format '{s}'. Use TYPE:DIAMETER_MM[:PRIOR_MM]")
@@ -22,8 +24,16 @@ def _parse_nodule(s: str) -> Nodule:
         nodule_type = NoduleType(ntype)
     except ValueError:
         raise ValueError(f"Invalid nodule type '{ntype}'. Use: solid, part-solid, ground-glass")
-    diameter = float(parts[1])
-    prior = float(parts[2]) if len(parts) > 2 else None
+    try:
+        diameter = float(parts[1])
+    except ValueError:
+        raise ValueError(f"Invalid diameter '{parts[1]}'. Must be a number.")
+    prior = None
+    if len(parts) > 2:
+        try:
+            prior = float(parts[2])
+        except ValueError:
+            raise ValueError(f"Invalid prior diameter '{parts[2]}'. Must be a number.")
     return Nodule(
         nodule_id=f"nodule_{id(s)}",
         nodule_type=nodule_type,
@@ -66,7 +76,11 @@ def main(argv=None):
     if args.command == "assess":
         nodules = []
         for i, spec in enumerate(args.nodules):
-            n = _parse_nodule(spec)
+            try:
+                n = _parse_nodule(spec)
+            except ValueError as e:
+                print(f"Error: {e}", file=sys.stderr)
+                return 1
             n.nodule_id = f"nodule_{i+1}"
             if args.new:
                 n.is_new = True

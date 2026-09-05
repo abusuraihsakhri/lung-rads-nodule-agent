@@ -302,3 +302,89 @@ def assess_screening(
         nodule_summaries=nodule_summaries,
         notes=notes,
     )
+
+
+class ClinicalDomainEngine:
+    """Clinical domain evaluation engine for multi-agent case auditing.
+
+    Evaluates primary metrics, secondary kinetics, and biomarker concordance
+    against ACR Lung-RADS v2022 & Fleischner Society 2017 thresholds.
+    """
+
+    # Thresholds for primary metric evaluation
+    PRIMARY_WARNING_THRESHOLD = 20.0
+    PRIMARY_CRITICAL_THRESHOLD = 35.0
+
+    # Thresholds for secondary kinetics evaluation
+    SECONDARY_WARNING_THRESHOLD = 12.0
+    SECONDARY_CRITICAL_THRESHOLD = 18.0
+
+    # Status flags that trigger discordance alerts
+    DISCORDANT_FLAGS = {"DISCORDANT", "SUSPICIOUS", "ANOMALY", "MUTANT", "VIOLATION", "FAIL", "REJECT"}
+
+    @staticmethod
+    def evaluate_primary_index(primary_metric: float) -> Optional[Dict[str, str]]:
+        """Evaluate primary metric against clinical thresholds.
+
+        Returns alert dict if threshold exceeded, None otherwise.
+        """
+        if primary_metric >= ClinicalDomainEngine.PRIMARY_CRITICAL_THRESHOLD:
+            return {
+                "title": "Primary Metric Critical Threshold Exceeded",
+                "finding": f"Primary metric ({primary_metric:.1f}) exceeds critical threshold ({ClinicalDomainEngine.PRIMARY_CRITICAL_THRESHOLD:.1f}).",
+                "recommendation": "Immediate clinical review and escalation required.",
+            }
+        elif primary_metric >= ClinicalDomainEngine.PRIMARY_WARNING_THRESHOLD:
+            return {
+                "title": "Primary Metric Threshold Discrepancy",
+                "finding": f"Primary metric ({primary_metric:.1f}) exceeds standard clinical baseline ({ClinicalDomainEngine.PRIMARY_WARNING_THRESHOLD:.1f}).",
+                "recommendation": "Perform secondary cross-check and review calibration profile.",
+            }
+        return None
+
+    @staticmethod
+    def evaluate_secondary_kinetics(secondary_metric: float, is_stat: bool) -> Optional[Dict[str, str]]:
+        """Evaluate secondary kinetics against clinical thresholds.
+
+        Returns alert dict if threshold exceeded, None otherwise.
+        """
+        if is_stat or secondary_metric >= ClinicalDomainEngine.SECONDARY_CRITICAL_THRESHOLD:
+            return {
+                "title": "STAT Critical Kinetics Alert",
+                "finding": f"Secondary parameter index ({secondary_metric:.1f}) triggered automated supervisory escalation with STAT={is_stat}.",
+                "recommendation": "Initiate mandatory closed-loop clinical notification protocol.",
+            }
+        elif secondary_metric >= ClinicalDomainEngine.SECONDARY_WARNING_THRESHOLD:
+            return {
+                "title": "Secondary Kinetics Threshold Exceeded",
+                "finding": f"Secondary parameter index ({secondary_metric:.1f}) exceeds warning threshold ({ClinicalDomainEngine.SECONDARY_WARNING_THRESHOLD:.1f}).",
+                "recommendation": "Increase monitoring frequency and verify with secondary assay.",
+            }
+        return None
+
+    @staticmethod
+    def evaluate_biomarker_concordance(status_flag: str, biomarkers: Dict[str, Any]) -> Optional[Dict[str, str]]:
+        """Evaluate biomarker concordance and status flags.
+
+        Returns alert dict if discordance detected, None otherwise.
+        """
+        status_upper = str(status_flag).upper()
+        if any(flag in status_upper for flag in ClinicalDomainEngine.DISCORDANT_FLAGS):
+            return {
+                "title": "Biomarker / Feature Discordance Flag",
+                "finding": f"Phenotypic discordance noted in observation status ({status_flag}).",
+                "recommendation": "Reconcile correlative findings with secondary confirmatory testing.",
+            }
+
+        # Check biomarkers for elevated markers
+        elevated_markers = [
+            k for k, v in biomarkers.items()
+            if isinstance(v, str) and v.upper() in ("ELEVATED", "HIGH", "POSITIVE", "CRITICAL")
+        ]
+        if elevated_markers:
+            return {
+                "title": "Elevated Biomarker Detection",
+                "finding": f"Elevated biomarkers detected: {', '.join(elevated_markers)}.",
+                "recommendation": "Correlate with clinical findings and consider repeat testing.",
+            }
+        return None
