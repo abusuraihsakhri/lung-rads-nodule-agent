@@ -10,8 +10,8 @@ Reference: ACR Lung-RADS v2022
   - Category 3: Probably benign
   - Category 4A: Suspicious
   - Category 4B: Very suspicious
-  - Category 4X: 4A or 4B with additional suspicious features
-  - Category S: Other clinically significant finding
+  - Category 4X: category 3 or 4 with additional suspicious imaging features
+  - S modifier: Other clinically significant finding
 """
 from typing import List, Optional, Dict, Any
 from .models import Nodule, NoduleType, LungRADSCategory, LungRADSResult
@@ -21,7 +21,7 @@ from .models import Nodule, NoduleType, LungRADSCategory, LungRADSResult
 CATEGORY_INFO: Dict[LungRADSCategory, Dict[str, str]] = {
     LungRADSCategory.CATEGORY_1: {
         "label": "Negative",
-        "description": "No pulmonary nodules. No further action needed.",
+        "description": "No pulmonary nodules or suspicious findings under the modeled criteria.",
         "management": "Continue annual LDCT screening.",
     },
     LungRADSCategory.CATEGORY_2: {
@@ -36,8 +36,8 @@ CATEGORY_INFO: Dict[LungRADSCategory, Dict[str, str]] = {
     },
     LungRADSCategory.CATEGORY_4A: {
         "label": "Suspicious",
-        "description": "Nodule(s) with moderately suspicious for clinically significant malignancy.",
-        "management": "3-month LDCT follow-up. Consider PET/CT for nodules >= 8mm.",
+        "description": "Nodule(s) suspicious for clinically significant malignancy.",
+        "management": "3-month LDCT follow-up; PET/CT may be considered if solid component is at least 8 mm.",
     },
     LungRADSCategory.CATEGORY_4B: {
         "label": "Very suspicious",
@@ -46,150 +46,83 @@ CATEGORY_INFO: Dict[LungRADSCategory, Dict[str, str]] = {
     },
     LungRADSCategory.CATEGORY_4X: {
         "label": "Very suspicious with additional features",
-        "description": "Category 4A or 4B with additional suspicious features (e.g., lymphadenopathy, pleural effusion).",
+        "description": "Category 3 or 4 with additional imaging features that increase suspicion.",
         "management": "Chest CT with or without contrast, PET/CT, and/or tissue sampling.",
     },
     LungRADSCategory.CATEGORY_S: {
         "label": "Other clinically significant finding",
-        "description": "Clinically significant findings unrelated to nodules (e.g., aortic aneurysm, consolidation).",
-        "management": "Follow-up as appropriate for the specific finding.",
+        "description": "S is a modifier for additional clinically significant non-lung-cancer findings.",
+        "management": "Apply appropriate follow-up in addition to numeric Lung-RADS management.",
     },
 }
 
 
 def categorize_solid_nodule(nodule: Nodule) -> LungRADSCategory:
-    """
-    Categorize a solid nodule based on Lung-RADS v2022.
-
-    For baseline screening:
-      - <6mm: Category 2
-      - 6 to <8mm: Category 3
-      - 8 to <15mm: Category 4A
-      - >=15mm: Category 4B
-
-    For new nodules on follow-up:
-      - <4mm: Category 2
-      - 4 to <6mm: Category 3
-      - 6 to <8mm: Category 4A
-      - >=8mm: Category 4B
-
-    Growth >=2mm upgrades to at least Category 4A.
-    """
+    """Classify solid nodules using ACR Lung-RADS v2022 size and growth rules."""
     d = nodule.diameter_mm
-
     if nodule.is_new:
-        # New nodule thresholds (on follow-up)
         if d < 4:
-            cat = LungRADSCategory.CATEGORY_2
-        elif d < 6:
-            cat = LungRADSCategory.CATEGORY_3
-        elif d < 8:
-            cat = LungRADSCategory.CATEGORY_4A
-        else:
-            cat = LungRADSCategory.CATEGORY_4B
-    else:
-        # Baseline / existing nodule thresholds
+            return LungRADSCategory.CATEGORY_2
         if d < 6:
-            cat = LungRADSCategory.CATEGORY_2
-        elif d < 8:
-            cat = LungRADSCategory.CATEGORY_3
-        elif d < 15:
-            cat = LungRADSCategory.CATEGORY_4A
-        else:
-            cat = LungRADSCategory.CATEGORY_4B
+            return LungRADSCategory.CATEGORY_3
+        if d < 8:
+            return LungRADSCategory.CATEGORY_4A
+        return LungRADSCategory.CATEGORY_4B
 
-    # Growth >= 2mm upgrades
-    if nodule.has_significant_growth(2.0):
-        if cat in (LungRADSCategory.CATEGORY_1, LungRADSCategory.CATEGORY_2,
-                    LungRADSCategory.CATEGORY_3):
-            cat = LungRADSCategory.CATEGORY_4A
-        # Already 4A or higher stays as-is or higher
-
-    return cat
-
+    # Growing solid nodules <8 mm are 4A; growing solid nodules >=8 mm
+    # require 4B assessment. Growth means >1.5 mm in <=12 months.
+    if nodule.has_significant_growth():
+        return (LungRADSCategory.CATEGORY_4B if d >= 8
+                else LungRADSCategory.CATEGORY_4A)
+    if d < 6:
+        return LungRADSCategory.CATEGORY_2
+    if d < 8:
+        return LungRADSCategory.CATEGORY_3
+    if d < 15:
+        return LungRADSCategory.CATEGORY_4A
+    return LungRADSCategory.CATEGORY_4B
 
 def categorize_part_solid_nodule(nodule: Nodule) -> LungRADSCategory:
-    """
-    Categorize a part-solid (subsolid) nodule based on Lung-RADS v2022.
+    """Classify part-solid nodules by total size AND measured solid component.
 
-    Part-solid nodules are assessed by total diameter and solid component size.
-    Since we track total diameter and can infer solid component from growth or
-    explicit data, we use total diameter with solid component thresholds.
-
-    Baseline:
-      - Total <6mm: Category 2
-      - Total >=6mm with solid component <6mm: Category 3
-      - Total >=6mm with solid component 6-8mm: Category 4A
-      - Total >=6mm with solid component >=8mm: Category 4B
-
-    New part-solid nodules:
-      - <6mm total: Category 2
-      - >=6mm total: Category 3 (unless solid component warrants higher)
-    """
-    d = nodule.diameter_mm  # total diameter
-    # For part-solid, we use a convention: if prior_diameter is set and the nodule
-    # has grown, the growth approximates the solid component increase.
-    # We store solid component size in notes or use diameter as proxy.
-    # For simplicity, we treat the total diameter for initial categorization
-    # and use growth to determine if solid component is enlarging.
-
-    if nodule.is_new:
-        if d < 6:
-            return LungRADSCategory.CATEGORY_2
-        else:
-            # New part-solid >= 6mm: Category 3 unless significant growth
-            if nodule.has_significant_growth(2.0):
-                return LungRADSCategory.CATEGORY_4A
-            return LungRADSCategory.CATEGORY_3
-    else:
-        # Baseline part-solid
-        if d < 6:
-            return LungRADSCategory.CATEGORY_2
-
-        # >= 6mm total: determine by solid component behavior
-        # Significant growth suggests enlarging solid component
-        if nodule.has_significant_growth(2.0):
-            return LungRADSCategory.CATEGORY_4A
-
-        # Stable part-solid >= 6mm: Category 3
-        return LungRADSCategory.CATEGORY_3
-
-
-def categorize_ground_glass_nodule(nodule: Nodule) -> LungRADSCategory:
-    """
-    Categorize a ground-glass nodule based on Lung-RADS v2022.
-
-    Baseline:
-      - <6mm: Category 2
-      - 6 to <30mm without growth: Category 2 or 3
-      - >=30mm: Category 3
-
-    New ground-glass:
-      - <4mm: Category 2
-      - 4 to <6mm: Category 2
-      - >=6mm: Category 3
-
-    Growth >=2mm: Category 4A
+    A missing solid-component measurement must not silently be assumed benign.
     """
     d = nodule.diameter_mm
+    if d < 6:
+        return (LungRADSCategory.CATEGORY_3 if nodule.is_new
+                else LungRADSCategory.CATEGORY_2)
 
-    if nodule.has_significant_growth(2.0):
+    solid = nodule.solid_component_mm
+    if solid is None:
+        raise ValueError("Part-solid nodules >=6 mm require solid_component_mm for classification")
+
+    previous = nodule.prior_solid_component_mm
+    growing_solid = (previous is not None and nodule.prior_interval_months <= 12
+                     and solid - previous > 1.5)
+    newly_solid = previous == 0 and solid > 0
+
+    if solid >= 8:
+        return LungRADSCategory.CATEGORY_4B
+    if (growing_solid or newly_solid or nodule.is_new) and solid >= 4:
+        return LungRADSCategory.CATEGORY_4B
+    if solid >= 6 or ((growing_solid or newly_solid or nodule.is_new) and solid > 0):
         return LungRADSCategory.CATEGORY_4A
+    return LungRADSCategory.CATEGORY_3
 
-    if nodule.is_new:
-        if d < 6:
-            return LungRADSCategory.CATEGORY_2
-        else:
-            return LungRADSCategory.CATEGORY_3
-    else:
-        # Baseline
-        if d < 6:
-            return LungRADSCategory.CATEGORY_2
-        elif d < 30:
-            return LungRADSCategory.CATEGORY_3
-        else:
-            return LungRADSCategory.CATEGORY_3
+def categorize_ground_glass_nodule(nodule: Nodule) -> LungRADSCategory:
+    """Pure ground-glass nodules <30 mm are 2, >=30 mm at first detection 3.
 
+    Growth without a solid component does not automatically make a GGN 4A.
+    """
+    if nodule.diameter_mm >= 30:
+        # A >=30 mm GGN already >=30 mm on the prior scan and stable
+        # (or slowly growing) is category 2; first-detected >=30 mm is 3.
+        if (nodule.prior_diameter_mm is not None and
+                nodule.prior_diameter_mm >= 30 and
+                nodule.growth_mm() <= 1.5):
+            return LungRADSCategory.CATEGORY_2
+        return LungRADSCategory.CATEGORY_3
+    return LungRADSCategory.CATEGORY_2
 
 def categorize_nodule(nodule: Nodule) -> LungRADSCategory:
     """Categorize a single nodule based on its type."""
@@ -211,7 +144,7 @@ _CATEGORY_RANK: Dict[LungRADSCategory, int] = {
     LungRADSCategory.CATEGORY_4A: 3,
     LungRADSCategory.CATEGORY_4B: 4,
     LungRADSCategory.CATEGORY_4X: 5,
-    LungRADSCategory.CATEGORY_S: 6,
+    LungRADSCategory.CATEGORY_S: -1,  # Modifier, not a severity tier.
 }
 
 
@@ -226,12 +159,15 @@ def assess_screening(
     has_suspicious_extranodal_features: bool = False,
 ) -> LungRADSResult:
     """
-    Perform a complete Lung-RADS assessment for a screening LDCT.
+    Assess supported solid, part-solid and pure ground-glass nodule size rules.
+
+    This is not the complete ACR algorithm (e.g. airway, cystic, infection and
+    stepped follow-up pathways are outside scope).
 
     Args:
         nodules: List of Nodule objects found on the scan.
         has_other_significant_finding: True if there are other clinically
-            significant findings (triggers Category S).
+            significant findings (adds S modifier).
         has_suspicious_extranodal_features: True if there are additional
             suspicious features like lymphadenopathy or pleural effusion
             (triggers upgrade to Category 4X).
@@ -266,6 +202,8 @@ def assess_screening(
             "diameter_mm": nodule.diameter_mm,
             "category": cat.value,
             "location": nodule.location,
+            **({"solid_component_mm": nodule.solid_component_mm}
+               if nodule.solid_component_mm is not None else {}),
         }
 
         growth = nodule.growth_mm()
@@ -276,22 +214,29 @@ def assess_screening(
 
         if nodule.is_new:
             summary["is_new"] = True
+        if nodule.prior_solid_component_mm is not None:
+            summary["prior_solid_component_mm"] = nodule.prior_solid_component_mm
 
         nodule_summaries.append(summary)
 
     # Determine overall category (highest severity)
     overall = _max_category(nodule_categories) if nodule_categories else LungRADSCategory.CATEGORY_1
 
-    # Upgrade to 4X if suspicious extranodal features and currently 4A or 4B
-    if has_suspicious_extranodal_features and overall in (
-        LungRADSCategory.CATEGORY_4A, LungRADSCategory.CATEGORY_4B
+    # 4X is a distinct category for category 3 or 4 nodules with
+    # additional suspicious imaging findings, not only 4A/4B.
+    suspicious = has_suspicious_extranodal_features or any(
+        n.has_suspicious_features for n in nodules
+    )
+    if suspicious and overall in (
+        LungRADSCategory.CATEGORY_3, LungRADSCategory.CATEGORY_4A,
+        LungRADSCategory.CATEGORY_4B
     ):
         overall = LungRADSCategory.CATEGORY_4X
-        notes.append("Upgraded to 4X due to additional suspicious features (e.g., lymphadenopathy, pleural effusion).")
+        notes.append("Upgraded to 4X due to additional suspicious imaging features.")
 
-    # Add Category S if other significant findings exist
+    # S is a modifier and never replaces the numeric assessment category.
     if has_other_significant_finding:
-        notes.append("Other clinically significant finding(s) identified (Category S).")
+        notes.append("S modifier: other clinically significant finding(s) identified.")
 
     info = CATEGORY_INFO[overall]
     return LungRADSResult(
@@ -301,6 +246,7 @@ def assess_screening(
         management=info["management"],
         nodule_summaries=nodule_summaries,
         notes=notes,
+        s_modifier=has_other_significant_finding,
     )
 
 

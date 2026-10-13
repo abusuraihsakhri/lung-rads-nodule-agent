@@ -105,6 +105,6 @@ class LungScreeningCoordinator:
         if "status" in q or "summary" in q:
             return f"LungRADS Sentinel: Low-Dose CT Lung Cancer Screening Category & Action Agent currently tracking {len(self.case_registry)} cases in on-premises memory."
         elif "guideline" in q or "standard" in q:
-            return "Active clinical surveillance operates under ACR Lung-RADS v2022 & Fleischner Society 2017 validated protocols."
+            return "This demonstration audits configurable metric thresholds; it does not validate Lung-RADS or Fleischner clinical conformance."
         else:
-            return f"LungRADS Sentinel: Low-Dose CT Lung Cancer Screening Category & Action Agent executive agent online. Zero-PHI air-gapped monitoring active."
+            return f"LungRADS Sentinel: Low-Dose CT Lung Cancer Screening Category & Action Agent rule-based audit demonstration active; no clinical validation or PHI guarantee."

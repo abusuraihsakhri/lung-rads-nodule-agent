@@ -1,236 +1,117 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lung Rads Nodule Engine — Operations Console</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg: #090d16;
-            --card: #111827;
-            --border: #1f293d;
-            --accent: #3b82f6;
-            --accent-glow: rgba(59, 130, 246, 0.25);
-            --text: #f3f4f6;
-            --text-muted: #9ca3af;
-            --danger: #ef4444;
-            --warning: #f59e0b;
-            --success: #10b981;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: 'Inter', sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            padding: 2rem;
-            min-height: 100vh;
-        }
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid var(--border);
-            padding-bottom: 1.5rem;
-            margin-bottom: 2rem;
-        }
-        .header-title h1 { font-size: 1.6rem; font-weight: 700; color: #fff; }
-        .header-title p { color: var(--text-muted); font-size: 0.9rem; margin-top: 0.25rem; }
-        .badge {
-            display: inline-block;
-            padding: 0.3rem 0.8rem;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            background: var(--accent-glow);
-            color: var(--accent);
-            border: 1px solid var(--accent);
-        }
-        .grid {
-            display: grid;
-            grid-template-columns: 1fr 1.2fr;
-            gap: 1.5rem;
-        }
-        .card {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 1.5rem;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-        }
-        .card h2 {
-            font-size: 1.1rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        .form-group { margin-bottom: 1rem; }
-        label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.4rem; }
-        input, select, textarea {
-            width: 100%;
-            padding: 0.65rem 0.9rem;
-            background: #0d1322;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            color: #fff;
-            font-family: inherit;
-            font-size: 0.9rem;
-        }
-        input:focus, textarea:focus { outline: none; border-color: var(--accent); }
-        .btn {
-            background: var(--accent);
-            color: #fff;
-            border: none;
-            padding: 0.7rem 1.4rem;
-            border-radius: 6px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: 0.2s;
-            width: 100%;
-        }
-        .btn:hover { background: #2563eb; }
-        .terminal {
-            background: #060911;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 1rem;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.85rem;
-            color: #10b981;
-            height: 380px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-        }
-        .metrics-bar {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-        }
-        .metric-box {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 1rem;
-            text-align: center;
-        }
-        .metric-val { font-size: 1.4rem; font-weight: 700; color: #fff; margin-top: 0.25rem; }
-        .metric-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; }
-    </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="Offline educational Lung-RADS v2022 nodule-size assessment.">
+  <title>Lung-RADS v2022 | Nodule Assessment</title>
+  <style>
+    :root { font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; color: #15243a; background: #f2f5f8; font-synthesis: none; }
+    * { box-sizing: border-box; }
+    body { margin: 0; line-height: 1.5; }
+    header { background: #102c48; color: #fff; border-bottom: 5px solid #27afaa; }
+    .wrap { max-width: 1050px; margin: auto; padding: 0 22px; }
+    header .wrap { padding-top: 27px; padding-bottom: 24px; }
+    h1 { font-size: clamp(1.5rem, 3.2vw, 2.25rem); letter-spacing: -.025em; margin: 0 0 5px; }
+    header p { color: #d5e4ed; margin: 0; font-size: .96rem; }
+    main { padding-top: 24px !important; padding-bottom: 48px !important; }
+    .notice { border-left: 4px solid #d58a23; background: #fff6e8; padding: 12px 15px; font-size: .9rem; border-radius: 4px; margin-bottom: 20px; }
+    .card { background: #fff; border: 1px solid #dbe3eb; border-radius: 12px; padding: 20px; box-shadow: 0 4px 24px rgba(15, 42, 65, .035); margin-bottom: 18px; }
+    .heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    h2 { font-size: 1.14rem; margin: 0 0 13px; letter-spacing: -.01em; }
+    h3 { font-size: 1rem; margin: 0; }
+    p { margin: 0 0 12px; }
+    .muted { color: #4e6279; font-size: .87rem; }
+    .nodule { border: 1px solid #e0e7ee; padding: 14px; border-radius: 9px; background: #fbfcfd; margin-bottom: 11px; }
+    .nodule-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    label { display: block; font-size: .82rem; font-weight: 630; color: #344862; }
+    input:not([type="checkbox"]), select { display: block; background: #fff; margin-top: 4px; border: 1px solid #bdcbd9; border-radius: 6px; padding: 9px 10px; width: 100%; font: inherit; font-size: .94rem; min-height: 40px; color: #172b44; }
+    input:disabled { background: #edf1f5; opacity: .65; cursor: not-allowed; }
+    input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible { outline: 3px solid #43b8c1; outline-offset: 2px; }
+    .check { display: flex; align-items: flex-start; gap: 8px; font-size: .89rem; font-weight: 500; }
+    .check input { width: 17px; height: 17px; margin: 3px 0 0; accent-color: #117f81; flex-shrink: 0; }
+    .options { display: grid; gap: 12px; margin-top: 13px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 15px; }
+    button { font: inherit; font-weight: 680; font-size: .9rem; cursor: pointer; border-radius: 7px; padding: 9px 14px; background: #0a7277; color: #fff; border: 1px solid #0a7277; }
+    button:hover { background: #095e62; }
+    button.secondary { color: #27445c; border-color: #bbcbd9; background: white; }
+    button.secondary:hover { background: #edf4f8; }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+    .outcome { font-weight: 700; background: #e8f4f2; border: 1px solid #a5d5cd; padding: 13px; border-radius: 8px; margin: 10px 0; }
+    .outcome.error { color: #8a2730; background: #fff0f0; border-color: #e8b5b5; }
+    pre { background: #f6f8fa; border: 1px solid #e2e6eb; border-radius: 8px; padding: 13px; overflow: auto; max-height: 440px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: .82rem; line-height: 1.6; }
+    footer { border-top: 1px solid #dce5ec; padding: 19px 0 35px; color: #50637a; font-size: .84rem; }
+    a { color: #116b75; }
+    @media (max-width: 680px) { .fields { grid-template-columns: repeat(2, minmax(0, 1fr)); } .card { padding: 15px; } }
+    @media (max-width: 440px) { .fields { grid-template-columns: 1fr; } }
+  </style>
+  <script src="./app.js" defer></script>
 </head>
 <body>
-
-    <div class="header">
-        <div class="header-title">
-            <h1>Lung Rads Nodule Engine</h1>
-            <p>Domain: Clinical & Cryptographic AI | Standard: CAP / CLSI / NIST Standards | LabMind-Atlas Architecture</p>
-        </div>
-        <div>
-            <span class="badge">Air-Gapped Active</span>
-            <span class="badge" style="background: rgba(16,185,129,0.2); color: #10b981; border-color: #10b981;">Zero-PHI Guard Active</span>
-        </div>
+  <header>
+    <div class="wrap">
+      <h1>Lung-RADS v2022 Nodule Assessment</h1>
+      <p>Educational screening nodule categorization • Runs locally in your browser</p>
     </div>
-
-    <div class="metrics-bar">
-        <div class="metric-box">
-            <div class="metric-label">System Status</div>
-            <div class="metric-val" style="color: var(--success);" id="m-status">OPTIMAL</div>
-        </div>
-        <div class="metric-box">
-            <div class="metric-label">Tasks Processed</div>
-            <div class="metric-val" id="m-tasks">142</div>
-        </div>
-        <div class="metric-box">
-            <div class="metric-label">Audit Blocks Signed</div>
-            <div class="metric-val" id="m-audit">142</div>
-        </div>
-        <div class="metric-box">
-            <div class="metric-label">PHI Interceptions</div>
-            <div class="metric-val" style="color: var(--accent);" id="m-phi">0</div>
-        </div>
+  </header>
+  <main class="wrap">
+    <div class="notice" role="note"><strong>Not for clinical decision-making.</strong> This application implements a limited subset of ACR Lung-RADS v2022 size rules, not the complete system. It does not assess airway nodules, atypical cysts, suspected infection, prior-category stepped management, morphology-specific benign findings, or screening eligibility. Use the official ACR criteria and specialist judgment.</div>
+    <section class="card" aria-labelledby="input-title">
+      <div class="heading">
+        <h2 id="input-title">Nodule measurements</h2>
+        <button id="add" type="button" class="secondary">+ Add nodule</button>
+      </div>
+      <p class="muted">Enter mean diameters in millimeters. For part-solid nodules at least 6 mm, the solid component is required. Empty prior fields indicate a baseline measurement; if provided, a 12-month comparison interval is assumed unless specified.</p>
+      <div id="rows"></div>
+      <div class="options">
+        <label class="check"><input id="suspicious" type="checkbox"> Additional suspicious imaging features (may trigger 4X for category 3 or 4)</label>
+        <label class="check"><input id="sModifier" type="checkbox"> Other clinically significant finding (add S modifier)</label>
+      </div>
+      <div class="actions">
+        <button id="assess" type="button">Assess nodules</button>
+      </div>
+    </section>
+    <section class="card" aria-labelledby="result-title" aria-live="polite">
+      <div class="heading">
+        <h2 id="result-title">Assessment output</h2>
+        <button id="export" type="button" class="secondary" disabled>Export JSON</button>
+      </div>
+      <div id="status" class="muted" role="status">Enter measurements and select “Assess nodules”.</div>
+      <pre id="result" aria-label="Assessment JSON output"></pre>
+    </section>
+    <section class="card" aria-labelledby="limitations">
+      <h2 id="limitations">Clinical interpretation and privacy</h2>
+      <p class="muted">Growth is defined as a strictly greater than 1.5 mm increase in mean diameter over 12 months. An S finding is a modifier and does not replace the numeric category. A growing solid component may change a part-solid nodule's category independently of total diameter.</p>
+      <p class="muted">No accounts, analytics, backend calls, or patient records are used. Enter de-identified measurements only; data is processed in browser memory and is not retained by this page. Exported JSON is saved to your device. Use the <a href="https://www.acr.org/Clinical-Resources/Reporting-and-Data-Systems/Lung-Rads" target="_blank" rel="noopener noreferrer">ACR Lung-RADS reference</a> for the complete criteria.</p>
+    </section>
+  </main>
+  <template id="nodule-template">
+    <div class="nodule">
+      <div class="nodule-header">
+        <h3 class="row-number">Nodule</h3>
+        <button type="button" class="secondary remove" aria-label="Remove nodule">Remove</button>
+      </div>
+      <div class="fields">
+        <label>Nodule type
+          <select data-name="type">
+            <option value="solid">Solid</option>
+            <option value="part-solid">Part-solid</option>
+            <option value="ground-glass">Pure ground-glass</option>
+          </select>
+        </label>
+        <label>Mean diameter (mm)<input data-name="diameter" type="number" min="0" max="100" step="0.1" required></label>
+        <label>Prior diameter (mm)<input data-name="prior" type="number" min="0" max="100" step="0.1"></label>
+        <label>Solid component (mm)<input data-name="solid" type="number" min="0" max="100" step="0.1"></label>
+        <label>Prior solid component (mm)<input data-name="priorSolid" type="number" min="0" max="100" step="0.1"></label>
+        <label>Comparison interval (months)<input data-name="months" type="number" min="0.1" step="0.1" placeholder="12 (assumed)"></label>
+      </div>
+      <div class="options">
+        <label class="check"><input data-name="isNew" type="checkbox"> New nodule (not on prior study)</label>
+      </div>
     </div>
-
-    <div class="grid">
-        <div class="card">
-            <h2>⚙️ Dispatch Distributed Component Audit</h2>
-            <div class="form-group">
-                <label>Task / Sample ID</label>
-                <input type="text" id="task_id" value="TASK-2026-LIVE-01">
-            </div>
-            <div class="form-group">
-                <label>Target Identifier</label>
-                <input type="text" id="target_id" value="SPECIMEN-ALPHA-77">
-            </div>
-            <div class="form-group">
-                <label>Primary Measurement / Value</label>
-                <input type="number" id="primary_metric" value="29.4" step="0.1">
-            </div>
-            <div class="form-group">
-                <label>Secondary Metric / Kinetic Index</label>
-                <input type="number" id="secondary_metric" value="14.8" step="0.1">
-            </div>
-            <div class="form-group">
-                <label>Status / Phenotype Descriptor</label>
-                <input type="text" id="status_descriptor" value="DISCORDANT_ANOMALY">
-            </div>
-            <div class="form-group">
-                <label><input type="checkbox" id="is_critical" checked> Trigger Emergency / Critical Flag</label>
-            </div>
-            <button class="btn" onclick="runAudit()">Execute Distributed Component Audit</button>
-        </div>
-
-        <div class="card">
-            <h2>📊 Real-Time Consensus Dossier & Audit Log</h2>
-            <div class="terminal" id="outputConsole">// Lung Rads Nodule Engine Operations Console Ready
-// Connection established with Air-Gapped Supervisor
-// Cryptographic HMAC-SHA256 audit ledger loaded.
-// Ready for live task payload dispatch...</div>
-        </div>
-    </div>
-
-    <script>
-        async function runAudit() {
-            const consoleEl = document.getElementById('outputConsole');
-            consoleEl.innerText = "// Dispatching task across specialized workers...
-// Invoking InvariantQCWorker, SafetyEscalationWorker, ProtocolWorker...";
-
-            const payload = {
-                task_id: document.getElementById('task_id').value,
-                target_identifier: document.getElementById('target_id').value,
-                primary_metric: parseFloat(document.getElementById('primary_metric').value),
-                secondary_metric: parseFloat(document.getElementById('secondary_metric').value),
-                status_descriptor: document.getElementById('status_descriptor').value,
-                is_critical_flag: document.getElementById('is_critical').checked
-            };
-
-            try {
-                const res = await fetch('/api/audit', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                const data = await res.json();
-                consoleEl.innerText = JSON.stringify(data, null, 2);
-                document.getElementById('m-tasks').innerText = parseInt(document.getElementById('m-tasks').innerText) + 1;
-                document.getElementById('m-audit').innerText = parseInt(document.getElementById('m-audit').innerText) + 1;
-            } catch (err) {
-                consoleEl.innerText = "// Offline / Simulation Output:\n" + JSON.stringify({
-                    dossier_id: "DOSSIER-SIM-" + Math.floor(Math.random()*10000),
-                    system: "lung-rads-nodule-engine",
-                    domain: "Clinical & Cryptographic AI",
-                    task_id: payload.task_id,
-                    overall_urgency: payload.is_critical_flag ? "CRITICAL_STAT_PANIC" : "ELEVATED_RISK",
-                    integrity_status: "DISCORDANT_ANOMALY",
-                    alerts: [
-                        { worker: "InvariantQCWorker", alert: "Primary metric exceeds upper reference bound" },
-                        { worker: "SafetyEscalationWorker", alert: "Critical emergency interlock flag active" }
-                    ],
-                    audit_hash: "HMAC_SHA256_e83f9a72b941d6c381f9"
-                }, null, 2);
-            }
-        }
-    </script>
+  </template>
+  <footer><div class="wrap">Educational reference implementation • ACR Lung-RADS v2022 subset • No external application services</div></footer>
 </body>
 </html>

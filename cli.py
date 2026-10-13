@@ -9,36 +9,40 @@ from lung_rads_nodule_agent.engine import assess_screening, categorize_nodule, C
 
 
 def _parse_nodule(s: str) -> Nodule:
-    """Parse a nodule from 'type:diameter_mm' or 'type:diameter_mm:prior_mm' format."""
-    if not s or not isinstance(s, str):
+    """Parse TYPE:TOTAL_MM[:PRIOR_MM[:SOLID_MM[:PRIOR_SOLID_MM]]].
+
+    Leave the prior field blank for a part-solid nodule at baseline,
+    e.g. part-solid:10::4.
+    """
+    if not isinstance(s, str) or not s:
         raise ValueError("Nodule spec must be a non-empty string")
     parts = s.split(":")
-    if len(parts) < 2:
-        raise ValueError(f"Invalid nodule format '{s}'. Use TYPE:DIAMETER_MM[:PRIOR_MM]")
-    ntype = parts[0].lower().replace("-", "_").replace(" ", "_")
-    if ntype == "part_solid":
-        ntype = "part-solid"
-    elif ntype == "ground_glass":
-        ntype = "ground-glass"
+    if not 2 <= len(parts) <= 5:
+        raise ValueError("Use TYPE:TOTAL_MM[:PRIOR_MM[:SOLID_MM[:PRIOR_SOLID_MM]]]")
+    ntype = parts[0].lower().replace("_", "-").replace(" ", "-")
     try:
         nodule_type = NoduleType(ntype)
-    except ValueError:
-        raise ValueError(f"Invalid nodule type '{ntype}'. Use: solid, part-solid, ground-glass")
-    try:
-        diameter = float(parts[1])
-    except ValueError:
-        raise ValueError(f"Invalid diameter '{parts[1]}'. Must be a number.")
-    prior = None
-    if len(parts) > 2:
+    except ValueError as exc:
+        raise ValueError("Nodule type must be solid, part-solid or ground-glass") from exc
+
+    def number(i):
+        if len(parts) <= i or parts[i] == "":
+            return None
         try:
-            prior = float(parts[2])
-        except ValueError:
-            raise ValueError(f"Invalid prior diameter '{parts[2]}'. Must be a number.")
+            return float(parts[i])
+        except ValueError as exc:
+            raise ValueError(f"Invalid numeric measurement: {parts[i]!r}") from exc
+
+    diameter = number(1)
+    if diameter is None:
+        raise ValueError("Total diameter is required")
     return Nodule(
-        nodule_id=f"nodule_{id(s)}",
+        nodule_id="nodule",
         nodule_type=nodule_type,
         diameter_mm=diameter,
-        prior_diameter_mm=prior,
+        prior_diameter_mm=number(2),
+        solid_component_mm=number(3),
+        prior_solid_component_mm=number(4),
     )
 
 
@@ -53,7 +57,7 @@ def main(argv=None):
     p_assess = subparsers.add_parser("assess", help="Assess nodules and assign Lung-RADS category")
     p_assess.add_argument(
         "-n", "--nodule", action="append", dest="nodules", required=True,
-        help="Nodule spec: TYPE:DIAMETER_MM[:PRIOR_MM] (e.g., solid:7, part-solid:10:8). Repeatable.",
+        help="TYPE:TOTAL_MM[:PRIOR_MM[:SOLID_MM[:PRIOR_SOLID_MM]]], e.g. part-solid:10::4",
     )
     p_assess.add_argument("--new", action="store_true", help="Mark all nodules as new (not seen on prior scan)")
     p_assess.add_argument("--suspicious-features", action="store_true", help="Additional suspicious extranodal features (triggers 4X)")
@@ -66,6 +70,8 @@ def main(argv=None):
     p_cat.add_argument("diameter", type=float, help="Nodule diameter in mm")
     p_cat.add_argument("--prior", type=float, default=None, help="Prior diameter in mm")
     p_cat.add_argument("--new", action="store_true", help="Nodule is new (not on prior scan)")
+    p_cat.add_argument("--solid-component", type=float, help="Part-solid component diameter (mm)")
+    p_cat.add_argument("--prior-solid-component", type=float, help="Prior solid component diameter (mm)")
 
     # info command
     p_info = subparsers.add_parser("info", help="Show Lung-RADS category information")
@@ -83,14 +89,21 @@ def main(argv=None):
                 return 1
             n.nodule_id = f"nodule_{i+1}"
             if args.new:
+                if n.prior_diameter_mm is not None:
+                    print("Error: --new cannot be combined with prior diameters", file=sys.stderr)
+                    return 1
                 n.is_new = True
             nodules.append(n)
 
-        result = assess_screening(
-            nodules=nodules,
-            has_other_significant_finding=args.other_finding,
-            has_suspicious_extranodal_features=args.suspicious_features,
-        )
+        try:
+            result = assess_screening(
+                nodules=nodules,
+                has_other_significant_finding=args.other_finding,
+                has_suspicious_extranodal_features=args.suspicious_features,
+            )
+        except ValueError as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            return 1
 
         if args.json:
             print(json.dumps(result.to_dict(), indent=2))
@@ -98,7 +111,7 @@ def main(argv=None):
             print("=" * 60)
             print(f"  Lung-RADS Assessment")
             print("=" * 60)
-            print(f"  Category:    {result.category.value} - {result.category_label}")
+            print(f"  Category:    {result.category.value}{' + S' if result.s_modifier else ''} - {result.category_label}")
             print(f"  Description: {result.description}")
             print(f"  Management:  {result.management}")
             if result.nodule_summaries:
@@ -120,14 +133,20 @@ def main(argv=None):
 
     elif args.command == "categorize":
         ntype = NoduleType(args.type)
-        nodule = Nodule(
-            nodule_id="single",
-            nodule_type=ntype,
-            diameter_mm=args.diameter,
-            prior_diameter_mm=args.prior,
-            is_new=args.new,
-        )
-        cat = categorize_nodule(nodule)
+        try:
+            nodule = Nodule(
+                nodule_id="single",
+                nodule_type=ntype,
+                diameter_mm=args.diameter,
+                prior_diameter_mm=args.prior,
+                is_new=args.new,
+                solid_component_mm=args.solid_component,
+                prior_solid_component_mm=args.prior_solid_component,
+            )
+            cat = categorize_nodule(nodule)
+        except ValueError as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            return 1
         info = CATEGORY_INFO[cat]
         print(f"Lung-RADS {cat.value}: {info['label']}")
         print(f"  {info['description']}")
