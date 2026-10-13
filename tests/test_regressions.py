@@ -121,3 +121,29 @@ def test_api_health_and_valid_audit():
     })
     assert response.status_code == 200
     assert response.json()["total_alerts"] == 0
+
+
+def test_csv_boolean_false_is_false_and_true_is_true():
+    from lung_rads_nodule_agent.cli import _parse_csv_bool
+    assert _parse_csv_bool("False") is False
+    assert _parse_csv_bool("0") is False
+    assert _parse_csv_bool("True") is True
+    assert _parse_csv_bool("yes") is True
+    with pytest.raises(ValueError, match="Invalid boolean"):
+        _parse_csv_bool("perhaps")
+
+
+def test_batch_false_stat_does_not_raise_stat_alert(tmp_path):
+    import csv
+    from lung_rads_nodule_agent.cli import main as audit_cli
+    source = tmp_path / "batch.csv"
+    dest = tmp_path / "out.csv"
+    with source.open("w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(fh, fieldnames=["case_id", "metric_primary", "metric_secondary", "is_stat", "status_flag"])
+        writer.writeheader()
+        writer.writerow({"case_id": "SYNTH-01", "metric_primary": 5, "metric_secondary": 1,
+                         "is_stat": "False", "status_flag": "NORMAL"})
+    assert audit_cli(["batch", "-i", str(source), "-o", str(dest)]) == 0
+    with dest.open(newline="", encoding="utf-8") as fh:
+        rows = list(csv.DictReader(fh))
+    assert rows[0]["stat_critical_alerts"] == "0"
