@@ -115,6 +115,12 @@ def categorize_ground_glass_nodule(nodule: Nodule) -> LungRADSCategory:
     Growth without a solid component does not automatically make a GGN 4A.
     """
     if nodule.diameter_mm >= 30:
+        # A >=30 mm GGN already >=30 mm on the prior scan and stable
+        # (or slowly growing) is category 2; first-detected >=30 mm is 3.
+        if (nodule.prior_diameter_mm is not None and
+                nodule.prior_diameter_mm >= 30 and
+                nodule.growth_mm() <= 1.5):
+            return LungRADSCategory.CATEGORY_2
         return LungRADSCategory.CATEGORY_3
     return LungRADSCategory.CATEGORY_2
 
