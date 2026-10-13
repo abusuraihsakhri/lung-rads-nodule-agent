@@ -71,6 +71,8 @@ class Nodule:
             raise ValueError(f"diameter_mm exceeds reasonable bounds (>100mm): {self.diameter_mm}")
         if self.prior_diameter_mm is not None and self.prior_diameter_mm < 0:
             raise ValueError(f"prior_diameter_mm must be non-negative, got {self.prior_diameter_mm}")
+        if self.prior_diameter_mm is not None and self.prior_diameter_mm > 100:
+            raise ValueError(f"prior_diameter_mm exceeds reasonable bounds (>100mm): {self.prior_diameter_mm}")
         if self.prior_interval_months <= 0:
             raise ValueError("prior_interval_months must be positive")
         if self.is_new and self.prior_diameter_mm is not None:
