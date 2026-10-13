@@ -68,12 +68,12 @@ class TestSolidNodules:
         assert categorize_solid_nodule(n) == LungRADSCategory.CATEGORY_4B
 
     def test_solid_growth_upgrades_to_4a(self):
-        """A 5mm nodule that grew from 2mm (growth=3mm >= 2mm threshold) -> 4A."""
+        """A 5mm nodule that grew from 2mm (growth=3mm > 1.5mm threshold) -> 4A."""
         n = Nodule(nodule_id="s1", nodule_type=NoduleType.SOLID, diameter_mm=5, prior_diameter_mm=2)
         assert categorize_solid_nodule(n) == LungRADSCategory.CATEGORY_4A
 
     def test_solid_no_significant_growth_stays_same(self):
-        """A 5mm nodule that grew from 4mm (growth=1mm < 2mm) stays Category 2."""
+        """A 5mm nodule that grew from 4mm (growth=1mm <= 1.5mm) stays Category 2."""
         n = Nodule(nodule_id="s1", nodule_type=NoduleType.SOLID, diameter_mm=5, prior_diameter_mm=4)
         assert categorize_solid_nodule(n) == LungRADSCategory.CATEGORY_2
 
