@@ -35,6 +35,18 @@ jobs:
       run: |
         pytest -v
 
+    - name: Set up Node for browser rule tests
+      uses: actions/setup-node@v4
+      with:
+        node-version: "22"
+
+    - name: Test browser assessment rules
+      run: node --test tests/test_web.cjs
+
+    - name: Security HMAC integrity smoke test
+      run: |
+        python -c "from agents.base import AuditTrail; t=AuditTrail('test-secret'); t.log('test','ci','check',{'pass':True}); assert t.verify_integrity(); t.logs[0]['actor']='tampered'; assert not t.verify_integrity()"
+
     - name: Security SAST & Zero-PHI Audit
       run: |
         python -c "
