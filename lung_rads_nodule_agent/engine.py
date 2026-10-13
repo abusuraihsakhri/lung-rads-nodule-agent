@@ -10,7 +10,7 @@ Reference: ACR Lung-RADS v2022
   - Category 3: Probably benign
   - Category 4A: Suspicious
   - Category 4B: Very suspicious
-  - Category 4X: 4A or 4B with additional suspicious features
+  - Category 4X: category 3 or 4 with additional suspicious imaging features
   - S modifier: Other clinically significant finding
 """
 from typing import List, Optional, Dict, Any
@@ -36,8 +36,8 @@ CATEGORY_INFO: Dict[LungRADSCategory, Dict[str, str]] = {
     },
     LungRADSCategory.CATEGORY_4A: {
         "label": "Suspicious",
-        "description": "Nodule(s) with moderately suspicious for clinically significant malignancy.",
-        "management": "3-month LDCT follow-up. Consider PET/CT for nodules >= 8mm.",
+        "description": "Nodule(s) suspicious for clinically significant malignancy.",
+        "management": "3-month LDCT follow-up; PET/CT may be considered if solid component is at least 8 mm.",
     },
     LungRADSCategory.CATEGORY_4B: {
         "label": "Very suspicious",
@@ -46,7 +46,7 @@ CATEGORY_INFO: Dict[LungRADSCategory, Dict[str, str]] = {
     },
     LungRADSCategory.CATEGORY_4X: {
         "label": "Very suspicious with additional features",
-        "description": "Category 4A or 4B with additional suspicious features (e.g., lymphadenopathy, pleural effusion).",
+        "description": "Category 3 or 4 with additional imaging features that increase suspicion.",
         "management": "Chest CT with or without contrast, PET/CT, and/or tissue sampling.",
     },
     LungRADSCategory.CATEGORY_S: {
@@ -153,12 +153,15 @@ def assess_screening(
     has_suspicious_extranodal_features: bool = False,
 ) -> LungRADSResult:
     """
-    Perform a complete Lung-RADS assessment for a screening LDCT.
+    Assess supported solid, part-solid and pure ground-glass nodule size rules.
+
+    This is not the complete ACR algorithm (e.g. airway, cystic, infection and
+    stepped follow-up pathways are outside scope).
 
     Args:
         nodules: List of Nodule objects found on the scan.
         has_other_significant_finding: True if there are other clinically
-            significant findings (triggers Category S).
+            significant findings (adds S modifier).
         has_suspicious_extranodal_features: True if there are additional
             suspicious features like lymphadenopathy or pleural effusion
             (triggers upgrade to Category 4X).
