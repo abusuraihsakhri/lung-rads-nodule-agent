@@ -35,6 +35,7 @@ test("pure ground glass follows 30mm threshold", () => {
   assert.equal(categorize(n("ground-glass", 10, { prior: 7 })).category, "2");
   assert.equal(categorize(n("ground-glass", 29, { isNew: true })).category, "2");
   assert.equal(categorize(n("ground-glass", 30)).category, "3");
+  assert.equal(categorize(n("ground-glass", 32, { prior: 31 })).category, "2");
 });
 
 test("S modifier independent of numeric category", () => {
