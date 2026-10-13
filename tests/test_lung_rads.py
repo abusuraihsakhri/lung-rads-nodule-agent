@@ -159,6 +159,11 @@ class TestGroundGlassNodules:
 
 
 
+    def test_gg_stable_32mm_is_category_2(self):
+        n = Nodule(nodule_id="g", nodule_type=NoduleType.GROUND_GLASS,
+                   diameter_mm=32, prior_diameter_mm=31)
+        assert categorize_ground_glass_nodule(n) == LungRADSCategory.CATEGORY_2
+
     def test_gg_30mm_at_baseline_is_category_3(self):
         n = Nodule(nodule_id="g", nodule_type=NoduleType.GROUND_GLASS, diameter_mm=30)
         assert categorize_ground_glass_nodule(n) == LungRADSCategory.CATEGORY_3
