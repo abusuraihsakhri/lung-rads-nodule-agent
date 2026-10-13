@@ -78,6 +78,22 @@ class TestSolidNodules:
         assert categorize_solid_nodule(n) == LungRADSCategory.CATEGORY_2
 
 
+
+    def test_growth_just_above_1point5(self):
+        n = Nodule(nodule_id="s", nodule_type=NoduleType.SOLID,
+                   diameter_mm=5.6, prior_diameter_mm=4.0)
+        assert categorize_solid_nodule(n) == LungRADSCategory.CATEGORY_4A
+
+    def test_growth_exactly_1point5_is_not_significant(self):
+        n = Nodule(nodule_id="s", nodule_type=NoduleType.SOLID,
+                   diameter_mm=5.5, prior_diameter_mm=4.0)
+        assert categorize_solid_nodule(n) == LungRADSCategory.CATEGORY_2
+
+    def test_growing_solid_8mm_is_category_4b(self):
+        n = Nodule(nodule_id="s", nodule_type=NoduleType.SOLID,
+                   diameter_mm=8, prior_diameter_mm=6)
+        assert categorize_solid_nodule(n) == LungRADSCategory.CATEGORY_4B
+
 # ── Part-Solid Nodule Tests ─────────────────────────────────────────
 
 class TestPartSolidNodules:
@@ -86,21 +102,37 @@ class TestPartSolidNodules:
         assert categorize_part_solid_nodule(n) == LungRADSCategory.CATEGORY_2
 
     def test_part_solid_8mm_stable_is_category_3(self):
-        n = Nodule(nodule_id="ps1", nodule_type=NoduleType.PART_SOLID, diameter_mm=8)
+        n = Nodule(nodule_id="ps1", nodule_type=NoduleType.PART_SOLID, diameter_mm=8, solid_component_mm=3)
         assert categorize_part_solid_nodule(n) == LungRADSCategory.CATEGORY_3
 
-    def test_part_solid_with_growth_is_category_4a(self):
-        n = Nodule(nodule_id="ps1", nodule_type=NoduleType.PART_SOLID, diameter_mm=10, prior_diameter_mm=7)
+    def test_part_solid_with_growing_solid_component_is_category_4b(self):
+        n = Nodule(nodule_id="ps1", nodule_type=NoduleType.PART_SOLID, diameter_mm=10, prior_diameter_mm=7, solid_component_mm=5, prior_solid_component_mm=2)
+        assert categorize_part_solid_nodule(n) == LungRADSCategory.CATEGORY_4B
+
+    def test_part_solid_new_below_6mm_is_category_3(self):
+        n = Nodule(nodule_id="ps1", nodule_type=NoduleType.PART_SOLID, diameter_mm=4, is_new=True)
+        assert categorize_part_solid_nodule(n) == LungRADSCategory.CATEGORY_3
+
+    def test_part_solid_new_8mm_with_small_solid_component_is_category_4a(self):
+        n = Nodule(nodule_id="ps1", nodule_type=NoduleType.PART_SOLID, diameter_mm=8, solid_component_mm=2, is_new=True)
         assert categorize_part_solid_nodule(n) == LungRADSCategory.CATEGORY_4A
 
-    def test_part_solid_new_below_6mm_is_category_2(self):
-        n = Nodule(nodule_id="ps1", nodule_type=NoduleType.PART_SOLID, diameter_mm=4, is_new=True)
-        assert categorize_part_solid_nodule(n) == LungRADSCategory.CATEGORY_2
 
-    def test_part_solid_new_8mm_is_category_3(self):
-        n = Nodule(nodule_id="ps1", nodule_type=NoduleType.PART_SOLID, diameter_mm=8, is_new=True)
-        assert categorize_part_solid_nodule(n) == LungRADSCategory.CATEGORY_3
 
+    def test_part_solid_requires_solid_component(self):
+        n = Nodule(nodule_id="p", nodule_type=NoduleType.PART_SOLID, diameter_mm=8)
+        with pytest.raises(ValueError, match="solid_component_mm"):
+            categorize_part_solid_nodule(n)
+
+    @pytest.mark.parametrize("solid,category", [
+        (3.0, LungRADSCategory.CATEGORY_3),
+        (6.0, LungRADSCategory.CATEGORY_4A),
+        (8.0, LungRADSCategory.CATEGORY_4B),
+    ])
+    def test_part_solid_component_boundaries(self, solid, category):
+        n = Nodule(nodule_id="p", nodule_type=NoduleType.PART_SOLID,
+                   diameter_mm=12, solid_component_mm=solid)
+        assert categorize_part_solid_nodule(n) == category
 
 # ── Ground-Glass Nodule Tests ───────────────────────────────────────
 
@@ -109,22 +141,27 @@ class TestGroundGlassNodules:
         n = Nodule(nodule_id="g1", nodule_type=NoduleType.GROUND_GLASS, diameter_mm=4)
         assert categorize_ground_glass_nodule(n) == LungRADSCategory.CATEGORY_2
 
-    def test_gg_10mm_is_category_3(self):
+    def test_gg_10mm_is_category_2(self):
         n = Nodule(nodule_id="g1", nodule_type=NoduleType.GROUND_GLASS, diameter_mm=10)
-        assert categorize_ground_glass_nodule(n) == LungRADSCategory.CATEGORY_3
+        assert categorize_ground_glass_nodule(n) == LungRADSCategory.CATEGORY_2
 
-    def test_gg_with_growth_is_category_4a(self):
+    def test_gg_with_growth_below_30mm_is_category_2(self):
         n = Nodule(nodule_id="g1", nodule_type=NoduleType.GROUND_GLASS, diameter_mm=12, prior_diameter_mm=9)
-        assert categorize_ground_glass_nodule(n) == LungRADSCategory.CATEGORY_4A
+        assert categorize_ground_glass_nodule(n) == LungRADSCategory.CATEGORY_2
 
     def test_gg_new_5mm_is_category_2(self):
         n = Nodule(nodule_id="g1", nodule_type=NoduleType.GROUND_GLASS, diameter_mm=5, is_new=True)
         assert categorize_ground_glass_nodule(n) == LungRADSCategory.CATEGORY_2
 
-    def test_gg_new_8mm_is_category_3(self):
+    def test_gg_new_8mm_is_category_2(self):
         n = Nodule(nodule_id="g1", nodule_type=NoduleType.GROUND_GLASS, diameter_mm=8, is_new=True)
-        assert categorize_ground_glass_nodule(n) == LungRADSCategory.CATEGORY_3
+        assert categorize_ground_glass_nodule(n) == LungRADSCategory.CATEGORY_2
 
+
+
+    def test_gg_30mm_at_baseline_is_category_3(self):
+        n = Nodule(nodule_id="g", nodule_type=NoduleType.GROUND_GLASS, diameter_mm=30)
+        assert categorize_ground_glass_nodule(n) == LungRADSCategory.CATEGORY_3
 
 # ── Full Screening Assessment Tests ─────────────────────────────────
 
@@ -157,15 +194,23 @@ class TestAssessScreening:
         result = assess_screening(nodules, has_suspicious_extranodal_features=True)
         assert result.category == LungRADSCategory.CATEGORY_4X
 
-    def test_suspicious_features_no_upgrade_for_cat3(self):
+    def test_suspicious_features_upgrades_cat3_to_4x(self):
         """Suspicious features only upgrade 4A/4B to 4X, not lower categories."""
         nodules = [Nodule(nodule_id="n1", nodule_type=NoduleType.SOLID, diameter_mm=7)]
         result = assess_screening(nodules, has_suspicious_extranodal_features=True)
-        assert result.category == LungRADSCategory.CATEGORY_3
+        assert result.category == LungRADSCategory.CATEGORY_4X
 
     def test_other_finding_adds_note(self):
         result = assess_screening([], has_other_significant_finding=True)
         assert any("significant" in n.lower() for n in result.notes)
+
+
+    def test_s_modifier_preserves_numeric_category(self):
+        n = Nodule(nodule_id="n", nodule_type=NoduleType.SOLID, diameter_mm=7)
+        result = assess_screening([n], has_other_significant_finding=True)
+        assert result.category == LungRADSCategory.CATEGORY_3
+        assert result.s_modifier is True
+        assert result.to_dict()["s_modifier"] is True
 
     def test_result_has_management(self):
         nodules = [Nodule(nodule_id="n1", nodule_type=NoduleType.SOLID, diameter_mm=7)]
@@ -175,7 +220,7 @@ class TestAssessScreening:
     def test_result_has_nodule_summaries(self):
         nodules = [
             Nodule(nodule_id="n1", nodule_type=NoduleType.SOLID, diameter_mm=7),
-            Nodule(nodule_id="n2", nodule_type=NoduleType.PART_SOLID, diameter_mm=10, prior_diameter_mm=8),
+            Nodule(nodule_id="n2", nodule_type=NoduleType.PART_SOLID, diameter_mm=10, prior_diameter_mm=8, solid_component_mm=4, prior_solid_component_mm=2),
         ]
         result = assess_screening(nodules)
         assert len(result.nodule_summaries) == 2
@@ -223,7 +268,7 @@ class TestCLI:
         assert ret == 0
 
     def test_assess_multiple_nodules(self):
-        ret = cli_main(["assess", "-n", "solid:4", "-n", "part-solid:10:8"])
+        ret = cli_main(["assess", "-n", "solid:4", "-n", "part-solid:10:8:4:2"])
         assert ret == 0
 
     def test_assess_json_output(self, capsys):
