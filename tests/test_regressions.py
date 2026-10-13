@@ -147,3 +147,8 @@ def test_batch_false_stat_does_not_raise_stat_alert(tmp_path):
     with dest.open(newline="", encoding="utf-8") as fh:
         rows = list(csv.DictReader(fh))
     assert rows[0]["stat_critical_alerts"] == "0"
+
+
+def test_prior_diameter_upper_bound():
+    with pytest.raises(ValueError, match="prior_diameter_mm exceeds"):
+        Nodule("n", NoduleType.SOLID, 7, prior_diameter_mm=101)
