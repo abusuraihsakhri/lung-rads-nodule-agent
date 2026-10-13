@@ -3,6 +3,7 @@ Data models for Lung-RADS (Lung CT Screening Reporting and Data System).
 Standard: ACR Lung-RADS v2022
 """
 import datetime
+import math
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import List, Optional, Dict, Any
@@ -48,17 +49,44 @@ class Nodule:
     is_new: bool = False
     prior_diameter_mm: Optional[float] = None
     has_suspicious_features: bool = False
+    solid_component_mm: Optional[float] = None
+    prior_solid_component_mm: Optional[float] = None
+    prior_interval_months: float = 12.0  # Assumed when a prior measurement is supplied.
 
     def __post_init__(self):
-        """Validate nodule parameters after initialization."""
-        if not self.nodule_id or not isinstance(self.nodule_id, str):
+        """Validate measured dimensions and prevent unverifiable classification."""
+        if not isinstance(self.nodule_id, str) or not self.nodule_id.strip():
             raise ValueError("nodule_id must be a non-empty string")
+        if not isinstance(self.nodule_type, NoduleType):
+            raise ValueError("nodule_type must be a NoduleType")
+        for name in ("diameter_mm", "prior_diameter_mm", "solid_component_mm",
+                     "prior_solid_component_mm", "prior_interval_months"):
+            value = getattr(self, name)
+            if value is not None and (isinstance(value, bool) or not isinstance(value, (int, float))
+                                      or not math.isfinite(value)):
+                raise ValueError(f"{name} must be a finite number")
         if self.diameter_mm < 0:
             raise ValueError(f"diameter_mm must be non-negative, got {self.diameter_mm}")
         if self.diameter_mm > 100:
             raise ValueError(f"diameter_mm exceeds reasonable bounds (>100mm): {self.diameter_mm}")
         if self.prior_diameter_mm is not None and self.prior_diameter_mm < 0:
             raise ValueError(f"prior_diameter_mm must be non-negative, got {self.prior_diameter_mm}")
+        if self.prior_interval_months <= 0:
+            raise ValueError("prior_interval_months must be positive")
+        if self.is_new and self.prior_diameter_mm is not None:
+            raise ValueError("A new nodule cannot have a prior diameter")
+        if self.solid_component_mm is not None:
+            if self.nodule_type != NoduleType.PART_SOLID:
+                raise ValueError("solid_component_mm is only valid for part-solid nodules")
+            if not 0 <= self.solid_component_mm <= self.diameter_mm:
+                raise ValueError("solid_component_mm must be between 0 and total diameter_mm")
+        if self.prior_solid_component_mm is not None:
+            if self.nodule_type != NoduleType.PART_SOLID or self.solid_component_mm is None:
+                raise ValueError("prior_solid_component_mm requires a part-solid nodule with solid_component_mm")
+            if self.prior_diameter_mm is None:
+                raise ValueError("prior_solid_component_mm requires prior_diameter_mm")
+            if not 0 <= self.prior_solid_component_mm <= self.prior_diameter_mm:
+                raise ValueError("prior_solid_component_mm must be between 0 and prior_diameter_mm")
 
     def growth_mm(self) -> Optional[float]:
         """Calculate growth in mm from prior scan. None if no prior."""
@@ -66,12 +94,10 @@ class Nodule:
             return None
         return self.diameter_mm - self.prior_diameter_mm
 
-    def has_significant_growth(self, threshold_mm: float = 2.0) -> bool:
-        """Growth >= 2mm is considered significant per Lung-RADS."""
+    def has_significant_growth(self, threshold_mm: float = 1.5) -> bool:
+        """Lung-RADS v2022: strictly >1.5 mm mean-diameter growth within 12 months."""
         growth = self.growth_mm()
-        if growth is None:
-            return False
-        return growth >= threshold_mm
+        return growth is not None and self.prior_interval_months <= 12 and growth > threshold_mm
 
 
 @dataclass
@@ -83,6 +109,7 @@ class LungRADSResult:
     management: str
     nodule_summaries: List[Dict[str, Any]] = field(default_factory=list)
     notes: List[str] = field(default_factory=list)
+    s_modifier: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -92,6 +119,7 @@ class LungRADSResult:
             "management": self.management,
             "nodule_summaries": self.nodule_summaries,
             "notes": self.notes,
+            "s_modifier": self.s_modifier,
         }
 
 
