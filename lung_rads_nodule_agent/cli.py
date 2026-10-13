@@ -11,6 +11,20 @@ from .agents import LungScreeningCoordinator
 coordinator = LungScreeningCoordinator()
 
 
+def _parse_csv_bool(value):
+    """Read a CSV boolean without mistaking the string 'False' for True."""
+    if isinstance(value, bool):
+        return value
+    if value is None or str(value).strip() == "":
+        return False
+    lowered = str(value).strip().lower()
+    if lowered in {"true", "1", "yes", "y"}:
+        return True
+    if lowered in {"false", "0", "no", "n"}:
+        return False
+    raise ValueError(f"Invalid boolean value for is_stat: {value!r}")
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="lung-rads-nodule-agent", description="LungRADS Sentinel: Low-Dose CT Lung Cancer Screening Category & Action Agent")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -82,7 +96,7 @@ def main(argv=None):
                 primary_metric=float(r.get("metric_primary", r.get("primary_metric", 15.0))),
                 secondary_metric=float(r.get("metric_secondary", r.get("secondary_metric", 5.0))),
                 status_flag=r.get("status_flag", r.get("status_text", "NORMAL")),
-                is_stat=bool(r.get("is_stat", r.get("critical_flag", False))),
+                is_stat=_parse_csv_bool(r.get("is_stat", r.get("critical_flag", False))),
             )
             dossier = coordinator.process_case(case)
             row_dict = dict(r)
