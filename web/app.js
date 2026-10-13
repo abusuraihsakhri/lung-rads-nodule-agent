@@ -49,7 +49,7 @@
         else if (solid >= 6 || ((increasingSolid || newlySolid || n.isNew) && solid > 0)) category = "4A";
         else category = "3";
       }
-    } else category = d >= 30 ? "3" : "2";
+    } else category = d >= 30 && !(prior !== null && prior >= 30 && d - prior <= 1.5) ? "3" : "2";
     return { category, type: n.type, diameter_mm: d, solid_component_mm: solid,
              prior_diameter_mm: prior, prior_solid_component_mm: priorSolid, is_new: Boolean(n.isNew) };
   }
