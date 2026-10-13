@@ -98,10 +98,11 @@ class AuditTrail:
         for entry in self.logs:
             if entry.get("prev_hash") != prev:
                 return False
-            sign_string = "|".join(str(entry[k]) for k in (
-                "audit_id", "timestamp", "actor", "actor_tier", "event_type",
-                "payload_hash", "prev_hash"
-            ))
+            fields = ("audit_id", "timestamp", "actor", "actor_tier",
+                      "event_type", "payload_hash", "prev_hash")
+            if any(k not in entry for k in fields):
+                return False
+            sign_string = "|".join(str(entry[k]) for k in fields)
             expected = hmac.new(self.secret_key, sign_string.encode("utf-8"), hashlib.sha256).hexdigest()
             if not hmac.compare_digest(expected, str(entry.get("current_hash", ""))):
                 return False
